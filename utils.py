@@ -3,6 +3,7 @@ from word2number import w2n
 
 MAX_N = 100
 MIN_N = 10
+MAX_M=200
 
 numbers_names = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
                  'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen',

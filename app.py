@@ -4,9 +4,28 @@ from dash.dependencies import Input, Output
 import plotly.graph_objects as go
 import numpy as np
 import dash_bootstrap_components as dbc
-from dash_bootstrap_templates import load_figure_template
+import random
 
-load_figure_template('LUX')
+SIDEBAR_STYLE = {
+    "position": "fixed",
+    "top": 0,
+    "left": 0,
+    "bottom": 0,
+    "width": "25rem",
+    "padding": "2rem 1rem",
+    "background-color": "#f8f9fa",
+}
+
+# the styles for the main content position it to the right of the sidebar and
+# add some padding.
+CONTENT_STYLE = {
+    "margin-left": "29rem",
+    "margin-right": "2rem",
+    "padding": "2rem 1rem",
+}
+
+SCROLL_STYLE = {"maxHeight": "500px",
+                "overflow-y": "scroll"}
 TOTAL = 50
 from db import PileNumbersDataset
 from results_analyzer import ResultsAnalyzer
@@ -14,22 +33,28 @@ from results_analyzer import ResultsAnalyzer
 results_analyzer = ResultsAnalyzer()
 data = {
     'correct_count': results_analyzer.correct_count_mesh,
-    'most_common': results_analyzer.most_common_results_mesh,
-    'most_common_wrong': results_analyzer.most_common_wrong_mesh,
-    'most_common_wrong_count': results_analyzer.most_common_wrong_count_mesh,
-    'most_common_count': results_analyzer.most_common_count_mesh,
+    'common': results_analyzer.most_common_results_mesh,
+    'common_wrong': results_analyzer.most_common_wrong_mesh,
+    'common_wrong_count': results_analyzer.most_common_wrong_count_mesh,
+    'common_count': results_analyzer.most_common_count_mesh,
 }
-names = ['most_common', 'most_common_wrong', 'correct_count',
-         'most_common_count', 'most_common_wrong_count',
+names = ['common', 'common_wrong', 'correct_count',
+         'common_count', 'common_wrong_count',
          ]
-pile_number_dataset = PileNumbersDataset('assets/db')
+pile_number_dataset = PileNumbersDataset('assets/db_bu')
 
 app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 
-# Define the layout of the app
-app.layout = dbc.Container([
-    html.H1("LLM Math Addition Analyzer"),
-    html.Hr(),
+sidebar = html.Div(
+    [
+        html.H2("LLM MATH", className="display-4"),
+        html.Hr(),
+        dcc.Loading(html.Div(id='click-output-main'))
+    ],
+    style=SIDEBAR_STYLE,
+)
+
+content = html.Div(id="page-content", style=CONTENT_STYLE, children=[
     dbc.Tabs(
         [
             dbc.Tab(label=n.upper().replace("_", " "), tab_id=n) for n in names
@@ -37,17 +62,12 @@ app.layout = dbc.Container([
         id="tabs",
         active_tab=names[0],
     ),
+    html.Div(id="tab-content",
+             children=[dcc.Graph(id='heatmap'),
+                       html.Div(id='click-output-details')]),
+])
 
-    html.Div(id="tab-content", className="p-4", children=[
-        dbc.Row([
-            dbc.Col(dcc.Graph(id='heatmap')),
-            dbc.Col(dcc.Loading(html.Div(id='click-output-main')))
-        ]),
-        dbc.Row(dcc.Loading(html.Div(id='click-output-details')))
-
-    ]),
-]
-)
+app.layout = html.Div([dcc.Location(id="url"), sidebar, content])
 
 
 @app.callback(
@@ -59,14 +79,12 @@ def update_heatmap(selected_mode):
     heatmap_data = data[selected_mode]
 
     heatmap_trace = go.Heatmap(x=heatmap_data.index, y=heatmap_data.columns,
-                               z=heatmap_data, colorscale='Viridis')
+                               z=heatmap_data, colorscale='Blues')
 
     # Set layout
     layout = go.Layout(
-        title=f"Heatmap - Mode {selected_mode}",
-        xaxis=dict(title='X-axis'),
-        yaxis=dict(title='Y-axis'),
-
+        xaxis=dict(title='', showgrid=False),
+        yaxis=dict(title='', showgrid=False),
         clickmode='event+select',  # Enable click events
         width=900,  # Set the width
         height=900,  # Set the height
@@ -93,69 +111,76 @@ def get_clicked_point(x, y):
     for s in full_string_.split("<br/>"):
         full_string.append(html.Div(s))
     full_string.pop()
+
     db_sentences = pile_number_dataset.query(np.array([x, y, x + y]))
     db_sentences_len = len(db_sentences)
+    if len(db_sentences) > 100:
+        db_sentences = random.sample(db_sentences, 100)
+    if most_common_wrong > 10 and most_common_wrong < 100:
+        wrong_sentences = pile_number_dataset.query(
+            np.array([x, y, most_common_wrong]))
+    else:
+        wrong_sentences = []
 
-    wrong_sentences = pile_number_dataset.query(
-        np.array([x, y, most_common_wrong]))
     wrong_sentences_len = len(wrong_sentences)
+    if len(wrong_sentences) > 100:
+        wrong_sentences = random.sample(wrong_sentences, 100)
+    main_view = html.Div([
+        html.H4(f"{x}+{y}=({x + y})"),
+        html.P(
+            [html.Strong(f"Correct Count="),
+             f"{correct_count / TOTAL:.0%}"]),
+        html.P([html.Strong(f"Most Common="), f"{most_common}"]),
+        html.P([html.Strong(f"Most Common Count="),
+                f"{most_common_count / TOTAL:.0%}"]),
+        html.P(
+            [html.Strong(f"Most Common Wrong="), f"{most_common_wrong}"]),
+        html.P([html.Strong(f"Most Common Wrong Count="),
+                f"{most_common_wrong_count / TOTAL:.0%}"]),
+        html.P(html.Strong(f"DB Sentences ({db_sentences_len})")),
+        html.P(html.Strong(f"Wrong Sentences ({wrong_sentences_len})")),
+        html.P(html.Strong(f"All Counts")),
+        html.Div(html.Ul([html.Li(f'Result {k}, Count {v}') for k, v in
+                          all_counts.items()]))
 
-    main_view = dbc.Card(
-        dbc.CardBody([
-            html.H4(f"{x}+{y}=({x + y})"),
-            html.P(
-                [html.Strong(f"Correct Count="),
-                 f"{correct_count / TOTAL:.0%}"]),
-            html.P([html.Strong(f"Most Common="), f"{most_common}"]),
-            html.P([html.Strong(f"Most Common Count="),
-                    f"{most_common_count / TOTAL:.0%}"]),
-            html.P(
-                [html.Strong(f"Most Common Wrong="), f"{most_common_wrong}"]),
-            html.P([html.Strong(f"Most Common Wrong Count="),
-                    f"{most_common_wrong_count / TOTAL:.0%}"]),
-            html.P(html.Strong(f"All Counts")),
-            html.Div(html.Ul([html.Li(f'Result {k}, Count {v}') for k,v in all_counts.items()]))
-        ])
-    )
-    details_view = dbc.Card(
-        dbc.CardBody([
-            html.P("Full String:", id="full-string-header",
-                   style={'cursor': 'pointer', 'text-decoration': 'underline'}),
-            dcc.Checklist(
-                options=[
-                    {'label': 'Expand Full String',
-                     'value': 'expand-full-string'}],
-                id='expand-full-string',
-                inline=True
-            ),
-            html.Div(full_string, id='full-string-content',
-                     style={'display': 'none'}),
-            html.P("DB Sentences:", id="db-sentences-header",
-                   style={'cursor': 'pointer', 'text-decoration': 'underline'}),
-            dcc.Checklist(
-                options=[{'label': f'Expand DB Sentences ({db_sentences_len})',
-                          'value': 'expand-db-sentences'}],
-                id='expand-db-sentences',
-                inline=True
-            ),
-            html.Div(
-                html.Ul([html.Li(sentence) for sentence in db_sentences]),
-                     id='db-sentences-content', style={'display': 'none'}),
-            html.P("Wrong Sentences:", id="wrong-sentences-header",
-                   style={'cursor': 'pointer', 'text-decoration': 'underline'}),
-            dcc.Checklist(
-                options=[
-                    {'label': f'Expand Wrong Sentences ({wrong_sentences_len})',
-                     'value': 'expand-wrong-sentences'}],
-                id='expand-wrong-sentences',
-                inline=True
-            ),
-            html.Div(
-                html.Ul([html.Li(sentence) for sentence in wrong_sentences]),
-                id='wrong-sentences-content', style={'display': 'none'}),
+    ])
 
-        ])
-    )
+    details_view = html.Div([
+        dcc.Checklist(
+            options=[
+                {'label': 'Expand Queries',
+                 'value': 'expand-full-string'}],
+            id='expand-full-string',
+            inline=True
+        ),
+        html.Div(full_string, id='full-string-content',
+                 style={'display': 'none'}),
+        dcc.Checklist(
+            options=[
+                {'label': f'Expand Correct DB Sentences ({db_sentences_len})',
+                 'value': 'expand-db-sentences'}],
+            id='expand-db-sentences',
+            inline=True
+        ),
+        html.Div(
+            html.Ul([html.Li(sentence) for sentence in db_sentences]),
+            id='db-sentences-content',
+            style={'display': 'none'}),
+        dcc.Checklist(
+            options=[
+                {'label': f'Expand Wrong DB Sentences ({wrong_sentences_len})',
+                 'value': 'expand-wrong-sentences'}],
+            id='expand-wrong-sentences',
+            inline=True
+        ),
+        html.Div(
+            html.Ul([html.Li(sentence) for sentence in wrong_sentences]),
+            id='wrong-sentences-content',
+            style={'display': 'none', "maxHeight": "400px",
+                   "overflow": "scroll"}),
+
+    ])
+
     return main_view, details_view
 
 
@@ -165,7 +190,7 @@ def get_clicked_point(x, y):
 )
 def toggle_full_string_visibility(value):
     if value and 'expand-full-string' in value:
-        return {'display': 'block'}
+        return {'display': 'block', **SCROLL_STYLE}
     return {'display': 'none'}
 
 
@@ -175,19 +200,18 @@ def toggle_full_string_visibility(value):
 )
 def toggle_db_sentences_visibility(value):
     if value and 'expand-db-sentences' in value:
-        return {'display': 'block'}
+        return {'display': 'block', **SCROLL_STYLE}
     return {'display': 'none'}
 
 
 @app.callback(
-    [Output('wrong-sentences-content', 'style'),
-     Output('wrong-sentences-header', 'style')],
+    Output('wrong-sentences-content', 'style'),
     [Input('expand-wrong-sentences', 'value')]
 )
 def toggle_wrong_sentences_visibility(value):
     if value and 'expand-wrong-sentences' in value:
-        return {'display': 'block'}, {'text-decoration': 'none'}
-    return {'display': 'none'}, {'text-decoration': 'underline'}
+        return {'display': 'block', **SCROLL_STYLE}
+    return {'display': 'none'}
 
 
 # Callback to display clicked point coordinates
@@ -202,7 +226,7 @@ def display_click_data(click_data):
         y_value = int(click_data['points'][0]['y'])
         return get_clicked_point(y_value,x_value)
     else:
-        return ["Click on the heatmap to get coordinates", html.Div()]
+        return ["Click on the heatmap to get statistics", html.Div()]
 
 
 # Run the app

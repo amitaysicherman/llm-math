@@ -8,7 +8,7 @@ import numpy as np
 import pickle
 
 from nltk.tokenize import sent_tokenize
-from utils import find_numbers_in_text, MAX_N, MIN_N
+from utils import find_numbers_in_text, MAX_N, MIN_N, MAX_M
 import pandas as pd
 
 nltk.download('punkt')
@@ -78,8 +78,11 @@ class PileNumbersDataset:
                         protocol=pickle.HIGHEST_PROTOCOL)
 
     def check_skipped(self, line_numbers):
-        if any([(x != int(x)) or (x >= MAX_N) or (x < MIN_N) for x in
-                line_numbers]):
+        if any([x > MAX_M for x in line_numbers]):
+            return True
+        if sum([x > MAX_N for x in line_numbers]) > 1:
+            return True
+        if any([x < MIN_N for x in line_numbers]):
             return True
         line_numbers = [int(x) for x in line_numbers]
         sorted__numbers = tuple(sorted(line_numbers))
@@ -122,8 +125,6 @@ class PileNumbersDataset:
                         if b % 1_000 == 0:
                             msg = f"{self.base_dir}[{a:,}/{b:,} ({a / b :.2%})])"
                             pbar.set_description(msg)
-                if a > 100:  # TODO remove this
-                    break
 
             self.save_final_pointer(pile_numbers_file)
 

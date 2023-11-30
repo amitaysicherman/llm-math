@@ -34,6 +34,6 @@ class PileNumbersDataset:
 
 
 if __name__ == "__main__":
-    pile_number_dataset = PileNumbersDataset('assets/db')
+    pile_number_dataset = PileNumbersDataset('assets/db_bu')
     pile_number_dataset.load()
     print(pile_number_dataset.query(np.array([10, 21, 31])))
