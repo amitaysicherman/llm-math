@@ -63,8 +63,24 @@ content = html.Div(id="page-content", style=CONTENT_STYLE, children=[
         active_tab=names[0],
     ),
     html.Div(id="tab-content",
-             children=[dcc.Graph(id='heatmap'),
-                       html.Div(id='click-output-details')]),
+             children=[
+
+                 dbc.Row(dcc.Graph(id='heatmap')),
+                 dbc.Row([
+                     dbc.Col(html.Label('Min Color Threshold:')),
+                     dbc.Col(dcc.Input(id='min-threshold', type='number',
+                                       placeholder='Enter Min Threshold')),
+                     dbc.Col(html.Label('Max Color Threshold:')),
+                     dbc.Col(dcc.Input(id='max-threshold', type='number',
+                                       placeholder='Enter Max Threshold')),
+                     dbc.Col(html.Label('Binary Threshold:')),
+                     dbc.Col(dcc.Input(id='binary-threshold', type='number',
+                                       placeholder='Enter Binary Threshold'))
+                 ]),
+                 html.Hr(),
+                 dbc.Row(html.Div(id='click-output-details')),
+
+             ]),
 ])
 
 app.layout = html.Div([dcc.Location(id="url"), sidebar, content])
@@ -72,19 +88,31 @@ app.layout = html.Div([dcc.Location(id="url"), sidebar, content])
 
 @app.callback(
     Output('heatmap', 'figure'),
-    [Input("tabs", "active_tab")]
+    [Input("tabs", "active_tab"),
+     Input('max-threshold', 'value'),
+     Input('min-threshold', 'value'),
+     Input('binary-threshold', 'value')]
 )
-def update_heatmap(selected_mode):
+def update_heatmap(selected_mode, max_threshold, min_threshold,
+    binary_threshold):
     # Generate heatmap based on the selected mode (replace this with your logic)
     heatmap_data = data[selected_mode]
+
+    if max_threshold:
+        heatmap_data = heatmap_data.clip(upper=float(max_threshold))
+    if min_threshold:
+        heatmap_data = heatmap_data.clip(lower=float(min_threshold))
+    if binary_threshold:
+        binary_threshold = float(binary_threshold)
+        heatmap_data = (heatmap_data > binary_threshold).astype(int)
 
     heatmap_trace = go.Heatmap(x=heatmap_data.index, y=heatmap_data.columns,
                                z=heatmap_data, colorscale='Blues')
 
     # Set layout
     layout = go.Layout(
-        xaxis=dict(title='', showgrid=False),
-        yaxis=dict(title='', showgrid=False),
+        xaxis=dict(title='x', showgrid=False),
+        yaxis=dict(title='y', showgrid=False),
         clickmode='event+select',  # Enable click events
         width=900,  # Set the width
         height=900,  # Set the height
@@ -224,7 +252,7 @@ def display_click_data(click_data):
     if click_data is not None:
         x_value = int(click_data['points'][0]['x'])
         y_value = int(click_data['points'][0]['y'])
-        return get_clicked_point(y_value,x_value)
+        return get_clicked_point(x_value, y_value)
     else:
         return ["Click on the heatmap to get statistics", html.Div()]
 
