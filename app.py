@@ -258,7 +258,6 @@ def toggle_wrong_sentences_visibility(value):
     [Input('heatmap', 'clickData')]
 )
 def display_click_data(click_data):
-    print(click_data)
     if click_data is not None:
         x_value = int(click_data['points'][0]['x'])
         y_value = int(click_data['points'][0]['y'])
