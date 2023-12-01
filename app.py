@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import numpy as np
 import dash_bootstrap_components as dbc
 import random
+import pandas as pd
 
 SIDEBAR_STYLE = {
     "position": "fixed",
@@ -32,11 +33,12 @@ from results_analyzer import ResultsAnalyzer
 
 results_analyzer = ResultsAnalyzer()
 data = {
-    'correct_count': results_analyzer.correct_count_mesh,
-    'common': results_analyzer.most_common_results_mesh,
-    'common_wrong': results_analyzer.most_common_wrong_mesh,
-    'common_wrong_count': results_analyzer.most_common_wrong_count_mesh,
-    'common_count': results_analyzer.most_common_count_mesh,
+    'correct_count': lambda: results_analyzer.correct_count_mesh,
+    'common': lambda: results_analyzer.most_common_results_mesh,
+    'common_wrong': lambda: results_analyzer.most_common_wrong_mesh,
+    'common_wrong_count': lambda
+    : results_analyzer.most_common_wrong_count_mesh,
+    'common_count': lambda: results_analyzer.most_common_count_mesh,
 }
 names = ['common', 'common_wrong', 'correct_count',
          'common_count', 'common_wrong_count',
@@ -67,15 +69,26 @@ content = html.Div(id="page-content", style=CONTENT_STYLE, children=[
 
                  dbc.Row(dcc.Graph(id='heatmap')),
                  dbc.Row([
-                     dbc.Col(html.Label('Min Color Threshold:')),
+                     dbc.Col(dbc.Label('Min Color Threshold:')),
                      dbc.Col(dcc.Input(id='min-threshold', type='number',
                                        placeholder='Enter Min Threshold')),
-                     dbc.Col(html.Label('Max Color Threshold:')),
+                     dbc.Col(dbc.Label('Max Color Threshold:')),
                      dbc.Col(dcc.Input(id='max-threshold', type='number',
                                        placeholder='Enter Max Threshold')),
-                     dbc.Col(html.Label('Binary Threshold:')),
+                     dbc.Col(dbc.Label('Binary Threshold:')),
                      dbc.Col(dcc.Input(id='binary-threshold', type='number',
-                                       placeholder='Enter Binary Threshold'))
+                                       placeholder='Enter Binary Threshold')),
+
+                     dbc.Col(dbc.Checklist(
+                         options=[
+                             {"label": "Color By Symmetric", "value": 1},
+                         ],
+                         value=[],
+                         id="is-symmetric",
+                         inline=True,
+                         switch=True,
+                     )),
+
                  ]),
                  html.Hr(),
                  dbc.Row(html.Div(id='click-output-details')),
@@ -91,12 +104,18 @@ app.layout = html.Div([dcc.Location(id="url"), sidebar, content])
     [Input("tabs", "active_tab"),
      Input('max-threshold', 'value'),
      Input('min-threshold', 'value'),
-     Input('binary-threshold', 'value')]
+     Input('binary-threshold', 'value'),
+     Input('is-symmetric', 'value')]
 )
 def update_heatmap(selected_mode, max_threshold, min_threshold,
-    binary_threshold):
+    binary_threshold, is_symmetric):
     # Generate heatmap based on the selected mode (replace this with your logic)
-    heatmap_data = data[selected_mode]
+    heatmap_data = data[selected_mode]()
+    if len(is_symmetric):
+        print("is_symmetric", is_symmetric)
+        heatmap_data = pd.DataFrame(
+            np.abs(heatmap_data.values - heatmap_data.T.values),
+            index=heatmap_data.index, columns=heatmap_data.columns)
 
     if max_threshold:
         heatmap_data = heatmap_data.clip(upper=float(max_threshold))
@@ -105,9 +124,8 @@ def update_heatmap(selected_mode, max_threshold, min_threshold,
     if binary_threshold:
         binary_threshold = float(binary_threshold)
         heatmap_data = (heatmap_data > binary_threshold).astype(int)
-
     heatmap_trace = go.Heatmap(x=heatmap_data.index, y=heatmap_data.columns,
-                               z=heatmap_data, colorscale='Blues')
+                               z=heatmap_data.values, colorscale='Blues')
 
     # Set layout
     layout = go.Layout(
@@ -125,13 +143,7 @@ def update_heatmap(selected_mode, max_threshold, min_threshold,
 
 
 def get_clicked_point(x, y):
-    correct_count = int(results_analyzer.correct_count_mesh.loc[x, y])
-    most_common_count = int(results_analyzer.most_common_count_mesh.loc[x, y])
-    most_common_wrong_count = int(
-        results_analyzer.most_common_wrong_count_mesh.loc[
-            x, y])
     most_common_wrong = int(results_analyzer.most_common_wrong_mesh.loc[x, y])
-    most_common = int(results_analyzer.most_common_results_mesh.loc[x, y])
     all_counts = results_analyzer.all_counts_mesh.loc[x, y]
     all_counts = eval(all_counts)
     full_string_ = results_analyzer.full_string_mesh.loc[x, y]
@@ -144,7 +156,7 @@ def get_clicked_point(x, y):
     db_sentences_len = len(db_sentences)
     if len(db_sentences) > 100:
         db_sentences = random.sample(db_sentences, 100)
-    if most_common_wrong > 10 and most_common_wrong < 100:
+    if 10 < most_common_wrong < 100:
         wrong_sentences = pile_number_dataset.query(
             np.array([x, y, most_common_wrong]))
     else:
@@ -153,18 +165,15 @@ def get_clicked_point(x, y):
     wrong_sentences_len = len(wrong_sentences)
     if len(wrong_sentences) > 100:
         wrong_sentences = random.sample(wrong_sentences, 100)
+    key_values = []
+    for name, value in data.items():
+        v = int(value().loc[x, y])
+        n = " ".join([x[0].upper() + x[1:] for x in name.split("_")]) + ":"
+        key_values.append(
+            html.P([html.Strong(n), f"{v}"]))
     main_view = html.Div([
         html.H4(f"{x}+{y}=({x + y})"),
-        html.P(
-            [html.Strong(f"Correct Count="),
-             f"{correct_count / TOTAL:.0%}"]),
-        html.P([html.Strong(f"Most Common="), f"{most_common}"]),
-        html.P([html.Strong(f"Most Common Count="),
-                f"{most_common_count / TOTAL:.0%}"]),
-        html.P(
-            [html.Strong(f"Most Common Wrong="), f"{most_common_wrong}"]),
-        html.P([html.Strong(f"Most Common Wrong Count="),
-                f"{most_common_wrong_count / TOTAL:.0%}"]),
+        *key_values,
         html.P(html.Strong(f"DB Sentences ({db_sentences_len})")),
         html.P(html.Strong(f"Wrong Sentences ({wrong_sentences_len})")),
         html.P(html.Strong(f"All Counts")),
@@ -249,10 +258,11 @@ def toggle_wrong_sentences_visibility(value):
     [Input('heatmap', 'clickData')]
 )
 def display_click_data(click_data):
+    print(click_data)
     if click_data is not None:
         x_value = int(click_data['points'][0]['x'])
         y_value = int(click_data['points'][0]['y'])
-        return get_clicked_point(x_value, y_value)
+        return get_clicked_point(y_value, x_value)
     else:
         return ["Click on the heatmap to get statistics", html.Div()]
 

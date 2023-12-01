@@ -83,12 +83,9 @@ class ResultsAnalyzer:
         data['x'] = data['x'].astype(int)
         data['y'] = data['y'].astype(int)
         data['real_z'] = data['x'] + data['y']
-        data.loc[data['x'] < 10, 'z'] = None
-        data.loc[data['y'] < 10, 'z'] = None
-        data.loc[data['x'] > 99, 'z'] = None
-        data.loc[data['y'] > 99, 'z'] = None
-        # data.loc[data['real_z'] > 99, 'z'] = None
-        data.loc[data['z'] == -1, 'z'] = None
+        data.loc[(data['x'] < 10) | (data['y'] < 10) | (data['x'] > 99) | (
+                data['y'] > 99) | (data['z'] == -1), 'z'] = None
+
         data_pivot = data.pivot_table(index='x', columns='y', values='z',
                                       aggfunc='first')
         data_pivot.index = data_pivot.index.astype(int)
