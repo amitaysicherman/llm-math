@@ -25,7 +25,7 @@ def get_triples_from_results_file(file_path='assets/gen_results.txt'):
 
 
 def build_full_num_arrays(num_arrays, num_array_count):
-    full_num_arrays = np.zeros((len(num_array_count), MAX_N), dtype=np.bool_)
+    full_num_arrays = np.zeros((len(num_array_count), MAX_M), dtype=np.bool_)
     x = 0
     for i, count_ in tqdm(enumerate(num_array_count),
                           total=len(num_array_count)):
