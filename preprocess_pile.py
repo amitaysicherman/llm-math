@@ -19,8 +19,11 @@ def get_triples_from_results_file(file_path='assets/gen_results.txt'):
         results = [sorted([int(y) for y in x.split(",") if y]) for x in
                    f.read().split('\n')]
     results_df = pd.DataFrame(results[:-1], columns=['x', 'y', 'z', 'a', 'c'])
+    triples_count = results_df.groupby(['x', 'y', 'z']).size().reset_index()
+    triples_not_unique = triples_count[triples_count[0] > 2]
     triples = set(
-        results_df[['x', 'y', 'z']].itertuples(index=False, name=None))
+        triples_not_unique.itertuples(index=False, name=None))
+
     return triples
 
 
@@ -36,7 +39,7 @@ def build_full_num_arrays(num_arrays, num_array_count):
 
 def build_inverse_mapping(full_num_arrays):
     inverse_mapping = {}
-    for i in tqdm(range(MAX_N)):
+    for i in tqdm(range(MAX_M)):
         inverse_mapping[i] = np.where(full_num_arrays[:, i])[0].astype(
             np.uint32)
     return inverse_mapping
