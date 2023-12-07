@@ -36,4 +36,6 @@ class PileNumbersDataset:
 if __name__ == "__main__":
     pile_number_dataset = PileNumbersDataset('assets/db_bu')
     pile_number_dataset.load()
-    print(pile_number_dataset.query(np.array([10, 21, 31])))
+    sentence=pile_number_dataset.query(np.array([78, 56,34 ]))
+    sentence=[x for x in sentence if "56%" in x]
+    print("\n".join(sentence))

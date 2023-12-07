@@ -88,11 +88,19 @@ content = html.Div(id="page-content", style=CONTENT_STYLE, children=[
                          inline=True,
                          switch=True,
                      )),
+                     dbc.Col(dbc.Checklist(
+                         options=[
+                             {"label": "Color By Symmetric", "value": 1},
+                         ],
+                         value=[],
+                         id="is-symmetric",
+                         inline=True,
+                         switch=True,
+                     )),
 
                  ]),
                  html.Hr(),
                  dbc.Row(html.Div(id='click-output-details')),
-
              ]),
 ])
 
