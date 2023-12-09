@@ -39,11 +39,14 @@ data = {
     'common_wrong_count': lambda
     : results_analyzer.most_common_wrong_count_mesh,
     'common_count': lambda: results_analyzer.most_common_count_mesh,
+    'sentence_count_(log)': lambda: results_analyzer.sentence_count_mesh,
+    'sentence_wrong_(log)': lambda: results_analyzer.sentence_wrong_mesh
 }
 names = ['common', 'common_wrong', 'correct_count',
-         'common_count', 'common_wrong_count',
+         'common_count', 'common_wrong_count', 'sentence_count_(log)',
+         'sentence_wrong_(log)'
          ]
-pile_number_dataset = PileNumbersDataset('assets/db_bu')
+pile_number_dataset = PileNumbersDataset('assets/db')
 
 app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
 
@@ -88,15 +91,6 @@ content = html.Div(id="page-content", style=CONTENT_STYLE, children=[
                          inline=True,
                          switch=True,
                      )),
-                     dbc.Col(dbc.Checklist(
-                         options=[
-                             {"label": "Color By Symmetric", "value": 1},
-                         ],
-                         value=[],
-                         id="is-symmetric",
-                         inline=True,
-                         switch=True,
-                     )),
 
                  ]),
                  html.Hr(),
@@ -132,6 +126,11 @@ def update_heatmap(selected_mode, max_threshold, min_threshold,
     if binary_threshold:
         binary_threshold = float(binary_threshold)
         heatmap_data = (heatmap_data > binary_threshold).astype(int)
+    if "sentence" in selected_mode:
+        heatmap_data = pd.DataFrame(np.log10(1 + heatmap_data.values),
+                                    index=heatmap_data.index,
+                                    columns=heatmap_data.columns)
+
     heatmap_trace = go.Heatmap(x=heatmap_data.index, y=heatmap_data.columns,
                                z=heatmap_data.values, colorscale='Blues')
 
@@ -164,11 +163,8 @@ def get_clicked_point(x, y):
     db_sentences_len = len(db_sentences)
     if len(db_sentences) > 100:
         db_sentences = random.sample(db_sentences, 100)
-    if 10 < most_common_wrong < 100:
-        wrong_sentences = pile_number_dataset.query(
-            np.array([x, y, most_common_wrong]))
-    else:
-        wrong_sentences = []
+    wrong_sentences = pile_number_dataset.query(
+        np.array([x, y, most_common_wrong]))
 
     wrong_sentences_len = len(wrong_sentences)
     if len(wrong_sentences) > 100:

@@ -19,6 +19,9 @@ class PileNumbersDataset:
             self.inverse_mapping = pickle.load(handle)
 
     def query(self, numbers: np.ndarray):
+        for x in numbers:
+            if x not in self.inverse_mapping:
+                return []
         relevant_indexes = reduce(np.intersect1d,
                                   ([self.inverse_mapping[x] for x in numbers]))
         relevant_pointers = self.pointers[relevant_indexes]
@@ -34,8 +37,8 @@ class PileNumbersDataset:
 
 
 if __name__ == "__main__":
-    pile_number_dataset = PileNumbersDataset('assets/db_bu')
+    pile_number_dataset = PileNumbersDataset('db')
     pile_number_dataset.load()
-    sentence=pile_number_dataset.query(np.array([78, 56,34 ]))
-    sentence=[x for x in sentence if "56%" in x]
+    sentence = pile_number_dataset.query(np.array([78, 56, 34]))
+    sentence = [x for x in sentence if "56%" in x]
     print("\n".join(sentence))

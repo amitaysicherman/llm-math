@@ -3,28 +3,15 @@ import jsonlines
 import nltk
 from npy_append_array import NpyAppendArray
 from multiprocessing import Pool
+from results_analyzer import ResultsAnalyzer
 import os
 import numpy as np
 import pickle
 
 from nltk.tokenize import sent_tokenize
 from utils import find_numbers_in_text, MAX_N, MIN_N, MAX_M
-import pandas as pd
 
 nltk.download('punkt')
-
-
-def get_triples_from_results_file(file_path='assets/gen_results.txt'):
-    with open(file_path) as f:
-        results = [sorted([int(y) for y in x.split(",") if y]) for x in
-                   f.read().split('\n')]
-    results_df = pd.DataFrame(results[:-1], columns=['x', 'y', 'z', 'a', 'c'])
-    triples_count = results_df.groupby(['x', 'y', 'z']).size().reset_index()
-    triples_not_unique = triples_count[triples_count[0] > 2]
-    triples = set(
-        triples_not_unique.itertuples(index=False, name=None))
-
-    return triples
 
 
 def build_full_num_arrays(num_arrays, num_array_count):
@@ -60,7 +47,8 @@ class PileNumbersDataset:
         self.num_arrays_file = f'{base_dir}/num_arrays.npy'
         self.num_array_count_file = f'{base_dir}/num_array_count.npy'
         self.inverse_index_file = f'{base_dir}/inverse_mapping.pickle'
-        self.triples = get_triples_from_results_file()
+
+        self.triples = ResultsAnalyzer().get_all_triples()
         self.pointers = None
         self.inverse_mapping = None
 
@@ -88,8 +76,8 @@ class PileNumbersDataset:
         if any([x < MIN_N for x in line_numbers]):
             return True
         line_numbers = [int(x) for x in line_numbers]
-        sorted__numbers = tuple(sorted(line_numbers))
-        if len(set(line_numbers)) != 3 or sorted__numbers not in self.triples:
+        sorted__numbers = tuple(sorted(set(line_numbers)))
+        if len(line_numbers) != 3 or sorted__numbers not in self.triples:
             return True
         return False
 
