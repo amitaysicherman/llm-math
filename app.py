@@ -265,7 +265,7 @@ def display_click_data(click_data):
     if click_data is not None:
         x_value = int(click_data['points'][0]['x'])
         y_value = int(click_data['points'][0]['y'])
-        return get_clicked_point(y_value, x_value)
+        return get_clicked_point(x_value,y_value)
     else:
         return ["Click on the heatmap to get statistics", html.Div()]
 

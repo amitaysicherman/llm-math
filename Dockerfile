@@ -9,5 +9,5 @@ COPY . ./
 
 RUN pip install -r requirements.txt
 
-EXPOSE 8080
+EXPOSE 8050
 CMD python app.py
