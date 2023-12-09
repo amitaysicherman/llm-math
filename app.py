@@ -132,7 +132,7 @@ def update_heatmap(selected_mode, max_threshold, min_threshold,
                                     columns=heatmap_data.columns)
 
     heatmap_trace = go.Heatmap(x=heatmap_data.index, y=heatmap_data.columns,
-                               z=heatmap_data.values, colorscale='Blues')
+                               z=heatmap_data.values.T, colorscale='Blues')
 
     # Set layout
     layout = go.Layout(
